@@ -1,21 +1,12 @@
-# Use an official Python runtime as a base image
 FROM python:3.9-slim
-
-# Set the working directory inside the container
+LABEL maintainer="Mubbasher-Ahmed" version="1.0" description="Optimized Sakila App"
 WORKDIR /app
-
-# Copy the requirements file into the container at /app
+RUN useradd -m sakilauser && apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-
-# Install the required Python packages
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of your application into the container
 COPY . .
-
-# Expose the port Flask will run on
+RUN chown -R sakilauser:sakilauser /app
+USER sakilauser
 EXPOSE 5000
-
-
-# Run the Flask application
+HEALTHCHECK --interval=30s --timeout=5s CMD wget --quiet --spider http://localhost:5000/ || exit 1
 CMD ["python", "app.py"]
