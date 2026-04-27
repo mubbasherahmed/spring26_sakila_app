@@ -27,7 +27,6 @@ jobs:
         run: |
           echo "Deploying to STAGING environment..."
           echo "IMAGE_TAG=staging-${{ github.sha }}"
-          echo "DB_HOST=${{ secrets.STAGING_DB_HOST || 'staging-db.internal' }}"
           
       - name: Generate Job Summary
         run: |
@@ -55,8 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ github.run_number }}-${{ steps.get_date.outputs.date }}
-          tag_name: v2026.04.28 # Hardcoded for your current assignment date
+          tag_name: v2026.04.28
           release_name: Release v2026.04.28
           draft: false
           prerelease: false
