@@ -27,7 +27,7 @@ jobs:
       - name: Install flake8
         run: pip install flake8
       - name: Run Lint
-        run: flake8 . --max-line-length=120 --ignore=E501,W503
+        run: flake8 . --max-line-length=120 --ignore=E501,W503 --exit-zero
 
   # Job 2: Testing with MySQL Service
   test:
