@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-# Cancels in-progress runs if a new commit is pushed to the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,22 +15,19 @@ env:
   IMAGE_NAME: sakila-app
 
 jobs:
-  # Job 1: Linting (Code Quality Check)
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install flake8
         run: pip install flake8
       - name: Run Lint
-        # --exit-zero ensures the pipeline continues even if style issues are found
         run: flake8 . --max-line-length=120 --ignore=E501,W503 --exit-zero
 
-  # Job 2: Testing with MySQL Service Container
   test:
     needs: lint
     runs-on: ubuntu-latest
@@ -49,20 +45,17 @@ jobs:
           --health-timeout=5s
           --health-retries=3
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pymysql
       - name: Import Sakila Data
         run: |
-          # Download verified SQL files
           curl -L -o schema.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-schema.sql
           curl -L -o data.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-insert-data.sql
-          
-          # Import into the GitHub Actions MySQL service (runs on localhost)
           mysql -h 127.0.0.1 -u root -padmin sakila < schema.sql
           mysql -h 127.0.0.1 -u root -padmin sakila < data.sql
       - name: Run Tests
@@ -72,31 +65,28 @@ jobs:
           PYTHONPATH: .
         run: pytest -v
 
-  # Job 3: Build & Smoke Test (Docker Verification)
   build:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Build Image
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
       - name: Verify Image
         run: docker images
       - name: Smoke Test
         run: |
-          # Start the container and check if it's alive
           docker run -d -p 5000:5000 --name smoke-test ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
           curl -f http://localhost:5000 || exit 1
 
-  # Job 4: Security Scan (Trivy Analysis)
   security-scan:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build Image for Scan
         run: docker build -t ${{ env.IMAGE_NAME }}:scan .
       - name: Run Trivy Scan
@@ -111,7 +101,7 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
           aquasec/trivy image --format json --output trivy-report.json ${{ env.IMAGE_NAME }}:scan
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: trivy-report.json
