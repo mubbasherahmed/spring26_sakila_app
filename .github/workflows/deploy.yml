@@ -1,0 +1,65 @@
+name: Sakila Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app.py'
+      - 'config.py'
+      - 'templates/**'
+      - 'static/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'docker-compose.yml'
+  workflow_run:
+    workflows: ["Sakila CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simulate Staging Deploy
+        run: |
+          echo "Deploying to STAGING environment..."
+          echo "IMAGE_TAG=staging-${{ github.sha }}"
+          echo "DB_HOST=${{ secrets.STAGING_DB_HOST || 'staging-db.internal' }}"
+          
+      - name: Generate Job Summary
+        run: |
+          echo "### 🚀 Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* Status: Success" >> $GITHUB_STEP_SUMMARY
+          echo "* Environment: Staging" >> $GITHUB_STEP_SUMMARY
+          echo "* Version: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Notify
+        run: echo "Slack notification: Deployment to staging successful"
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simulate Production Deploy
+        run: |
+          echo "Deploying to PRODUCTION environment..."
+          echo "Live at: http://sakila-app.com"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}-${{ steps.get_date.outputs.date }}
+          tag_name: v2026.04.28 # Hardcoded for your current assignment date
+          release_name: Release v2026.04.28
+          draft: false
+          prerelease: false
+
+      - name: Notify
+        run: echo "Slack notification: Deployment to production successful"
