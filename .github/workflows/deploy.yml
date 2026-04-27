@@ -16,6 +16,10 @@ on:
     types: [completed]
     branches: [ main ]
 
+permissions:
+  contents: write
+  pull-requests: read
+  
 jobs:
   deploy-staging:
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
