@@ -23,6 +23,7 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
+      
       - name: Simulate Staging Deploy
         run: |
           echo "Deploying to STAGING environment..."
@@ -44,6 +45,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+      
       - name: Simulate Production Deploy
         run: |
           echo "Deploying to PRODUCTION environment..."
