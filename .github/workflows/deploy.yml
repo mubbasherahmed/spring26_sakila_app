@@ -65,4 +65,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify
-        run: echo "Slack notification: Deployment to production successful"
+        run: |
+          echo "Slack notification: Deployment to production successful"
