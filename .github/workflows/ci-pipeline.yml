@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ main ]
 
+# Cancels in-progress runs if a new commit is pushed to the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,7 +16,7 @@ env:
   IMAGE_NAME: sakila-app
 
 jobs:
-  # Job 1: Linting
+  # Job 1: Linting (Code Quality Check)
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -27,9 +28,10 @@ jobs:
       - name: Install flake8
         run: pip install flake8
       - name: Run Lint
+        # --exit-zero ensures the pipeline continues even if style issues are found
         run: flake8 . --max-line-length=120 --ignore=E501,W503 --exit-zero
 
-  # Job 2: Testing with MySQL Service
+  # Job 2: Testing with MySQL Service Container
   test:
     needs: lint
     runs-on: ubuntu-latest
@@ -41,7 +43,11 @@ jobs:
           MYSQL_DATABASE: sakila
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -52,20 +58,21 @@ jobs:
         run: pip install -r requirements.txt pytest pymysql
       - name: Import Sakila Data
         run: |
-          # Download the real files
+          # Download verified SQL files
           curl -L -o schema.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-schema.sql
           curl -L -o data.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-insert-data.sql
           
-          # Import them into the service container
+          # Import into the GitHub Actions MySQL service (runs on localhost)
           mysql -h 127.0.0.1 -u root -padmin sakila < schema.sql
           mysql -h 127.0.0.1 -u root -padmin sakila < data.sql
       - name: Run Tests
         env:
           MYSQL_HOST: 127.0.0.1
           MYSQL_ROOT_PASSWORD: admin
+          PYTHONPATH: .
         run: pytest -v
 
-  # Job 3: Build & Smoke Test
+  # Job 3: Build & Smoke Test (Docker Verification)
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -79,11 +86,12 @@ jobs:
         run: docker images
       - name: Smoke Test
         run: |
+          # Start the container and check if it's alive
           docker run -d -p 5000:5000 --name smoke-test ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
           curl -f http://localhost:5000 || exit 1
 
-  # Job 4: Security Scan
+  # Job 4: Security Scan (Trivy Analysis)
   security-scan:
     needs: build
     runs-on: ubuntu-latest
@@ -96,10 +104,12 @@ jobs:
         with:
           image-ref: '${{ env.IMAGE_NAME }}:scan'
           format: 'table'
-          exit-code: '0' # Don't fail the build
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
       - name: Save Scan Result
-        run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format json --output trivy-report.json ${{ env.IMAGE_NAME }}:scan
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image --format json --output trivy-report.json ${{ env.IMAGE_NAME }}:scan
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
