@@ -52,8 +52,11 @@ jobs:
         run: pip install -r requirements.txt pytest pymysql
       - name: Import Sakila Data
         run: |
-          curl -L -o schema.sql https://raw.githubusercontent.com/sakiladb/mysql/master/mysql-sakila-schema.sql
-          curl -L -o data.sql https://raw.githubusercontent.com/sakiladb/mysql/master/mysql-sakila-data.sql
+          # Download the real files
+          curl -L -o schema.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-schema.sql
+          curl -L -o data.sql https://raw.githubusercontent.com/jOOQ/sakila/main/mysql-sakila-db/mysql-sakila-insert-data.sql
+          
+          # Import them into the service container
           mysql -h 127.0.0.1 -u root -padmin sakila < schema.sql
           mysql -h 127.0.0.1 -u root -padmin sakila < data.sql
       - name: Run Tests
